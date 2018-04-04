@@ -8,37 +8,48 @@
             font: 10px sans-serif;
             text-anchor: middle;
         }
-
         .arc path {
             stroke: #fff;
         }
+        .labelValue {
+            font-size: 60%;
+            opacity: .5;
 
+        }
+        .toolTip {
+            position: absolute;
+            display: none;
+            width: auto;
+            height: auto;
+            background: none repeat scroll 0 0 white;
+            border: 0 none;
+            border-radius: 8px 8px 8px 8px;
+            color: black;
+            font: 12px sans-serif;
+            padding: 5px;
+            text-align: center;
+        }
+        text {
+            font: 12px sans-serif;
+        }
     </style>
 </head>
 <body>
-<div align="center">
-    <a href="one.html">One - Stacked Bar</a> |
-    <a href="two.html">Two - Pie</a> |
-    <a href="three.html">Three - Scatter Plot</a>
+
+<div id="graph-pie">
+    <h1>Pokemon Types</h1>
 </div>
-<svg width="960" height="500"></svg>
 <script>
-
-    var svg = d3.select("svg"),
-            width = +svg.attr("width"),
-            height = +svg.attr("height"),
+    var     width = 960,
+            height = 600,
             radius = Math.min(width, height) / 2,
-            g = svg.append("g").attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+            totalPokemon = 0;
 
-    var color = d3.scaleOrdinal(["#98abc5", "#8a89a6", "#7b6888", "#6b486b", "#a05d56", "#d0743c", "#ff8c00"]);
+    var colorRange = d3.scaleOrdinal(d3.schemeCategory20c);
 
-    var pie = d3.pie()
-        .sort(null)
-        .value(function (d) {
-            return d.total;
-        });
+    var div = d3.select("body").append("div").attr("class", "toolTip");
 
-    var path = d3.arc()
+    var arc = d3.arc()
         .outerRadius(radius - 10)
         .innerRadius(0);
 
@@ -46,33 +57,69 @@
         .outerRadius(radius - 40)
         .innerRadius(radius - 40);
 
-    d3.csv("data/Pokemon.csv", function (d) {
-        d.total += 1;
-        return d;
-    }, function (error, data) {
+    var pie = d3.pie()
+        .sort(null)
+        .value(function (d) {
+            return d.value;
+        });
+
+    var svg = d3.select('#graph-pie').append('svg')
+        .attr('width', width)
+        .attr('height', height)
+        .append('g')
+        .attr('transform', 'translate(' + width/2 + ',' + height/2 + ')');
+
+    // read the CSV file
+    d3.csv("data/Pokemon.csv", function (error, data) {
         if (error) throw error;
 
-        var arc = g.selectAll(".arc")
-            .data(pie(data))
-            .enter()
-            .append("g")
-            .attr("class", "arc");
+        totalPokemon = data.length;
 
-        arc.append("path")
-            .attr("d", path)
-            .attr("fill", function (d) {
-                // console.log(d.data["Type 1"]);
-                return color(d.data.generation);
+        var data = d3.nest()
+        .key(function(d) {
+            return d["Type 1"];
+        })
+        .rollup(function(d) {
+            return d3.sum(d, function(g) {
+                return 1;
+            });
+        }).entries(data);
+
+        var g = svg.selectAll('.arc')
+        .attr('padding', 50)
+        .attr('margin', 50)
+            .data(pie(data))
+            .enter().append('g')
+            .attr('class', 'arc');
+
+        g.append('path')
+            .attr('d', arc)
+            .attr('fill', function(d, i) {
+                return colorRange(i);
             });
 
-        arc.append("text")
+        g.append("text")
             .attr("transform", function (d) {
                 return "translate(" + label.centroid(d) + ")";
             })
-            .attr("dy", "0.35em")
+            .attr("dy", "0.45em")
+            .style("text-anchor", "middle")
             .text(function (d) {
-                return d.data.age;
+                return d.data.key;
             });
+
+        g.on("mousemove", function(d) {
+            var perc = Math.round((d.value / totalPokemon) * 100);
+
+            div.style("left", d3.event.pageX+10+"px");
+            div.style("top", d3.event.pageY-25+"px");
+            div.style("display", "inline-block");
+            div.html(d.data.key+"<br>"+d.value+" ("+perc+"% total)");
+        });
+
+        g.on("mouseout", function(d){
+            div.style("display", "none");
+        });
     });
 </script>
 </body>
